@@ -1,1 +1,0 @@
-<?php echo 'login page placeholder (hidden link)'; ?>

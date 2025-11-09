@@ -1,1 +1,0 @@
-<?php echo 'checkout placeholder'; ?>
