@@ -26,5 +26,23 @@ return [
 
   'timezone'     => 'Asia/Amman',
   'session_name' => 'appliance_session',
-  'debug'        => false
+  'debug'        => false,
+
+  // =========================================
+  // Payment Gateway Configuration (Sandbox)
+  // =========================================
+  // Stripe Configuration - Read from environment or use empty placeholders
+  'stripe_publishable_key' => getenv('STRIPE_PUBLISHABLE_KEY') ?: '',
+  'stripe_secret_key'      => getenv('STRIPE_SECRET_KEY') ?: '',
+  'stripe_webhook_secret'  => getenv('STRIPE_WEBHOOK_SECRET') ?: '',
+
+  // PayPal Configuration - Read from environment or use empty placeholders
+  'paypal_client_id'       => getenv('PAYPAL_CLIENT_ID') ?: '',
+  'paypal_secret'          => getenv('PAYPAL_SECRET') ?: '',
+  'paypal_mode'            => getenv('PAYPAL_MODE') ?: 'sandbox', // 'sandbox' or 'live'
+  'paypal_merchant_email'  => 'ajourisat@yahoo.com', // Reference only for PayPal Developer setup
+  'paypal_webhook_id'      => getenv('PAYPAL_WEBHOOK_ID') ?: '', // Webhook ID from PayPal Developer Dashboard
+
+  // Default currency for payment gateways
+  'default_currency'       => getenv('DEFAULT_CURRENCY') ?: 'USD',
 ];
