@@ -58,11 +58,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     $name    = trim($_POST['name'] ?? '');
     $phone   = trim($_POST['phone'] ?? '');
     $address = trim($_POST['address'] ?? '');
-    $method  = $_POST['payment_method'] ?? 'cod'; // cod | cliq | card
+    $method  = $_POST['payment_method'] ?? 'cod'; // cod | cliq | card | stripe | paypal
 
     if ($name==='' || $phone==='' || $address==='') {
       $err = 'يرجى تعبئة جميع الحقول.';
-    } elseif (!in_array($method, ['cod','cliq','card'], true)) {
+    } elseif (!in_array($method, ['cod','cliq','card','stripe','paypal'], true)) {
       $err = 'طريقة دفع غير صالحة.';
     } else {
 
@@ -78,6 +78,14 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
       } elseif ($method === 'card') {
         $gateway = 'card_stub';
         $paymentStatus = 'initiated';
+        $orderStatus = 'waiting_payment';
+      } elseif ($method === 'stripe') {
+        $gateway = 'stripe';
+        $paymentStatus = 'pending';
+        $orderStatus = 'waiting_payment';
+      } elseif ($method === 'paypal') {
+        $gateway = 'paypal';
+        $paymentStatus = 'pending';
         $orderStatus = 'waiting_payment';
       } else { // cod
         $gateway = 'cod';
@@ -178,6 +186,14 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             $msg = 'تم إنشاء الطلب بنجاح. رقم الطلب: '.$orderId.' سيتم الدفع عند التوصيل.';
           } elseif ($method === 'cliq') {
             $msg = 'تم إنشاء الطلب رقم '.$orderId.' بانتظار التحويل عبر كليك. الرجاء تنفيذ التحويل ثم تزويدنا بمرجع التحويل عند المتابعة.';
+          } elseif ($method === 'stripe') {
+            // التحويل إلى Stripe Checkout
+            header('Location: pay.php?order_id='.$orderId.'&gateway=stripe');
+            exit;
+          } elseif ($method === 'paypal') {
+            // التحويل إلى PayPal
+            header('Location: pay.php?order_id='.$orderId.'&gateway=paypal');
+            exit;
           } else { // card
             // تحويل وهمي إلى صفحة بدء الدفع الفعلي
             header('Location: payment_init.php?order='.$orderId);
@@ -265,8 +281,16 @@ $title = 'إتمام الشراء';
                 <label class="form-check-label" for="pmCliq">الدفع كليك (تحويل فوري)</label>
               </div>
               <div class="form-check">
+                <input class="form-check-input" type="radio" name="payment_method" id="pmStripe" value="stripe" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='stripe'?'checked':'' ?>>
+                <label class="form-check-label" for="pmStripe"><i class="bi bi-credit-card"></i> Stripe (Visa/MasterCard)</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="payment_method" id="pmPaypal" value="paypal" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='paypal'?'checked':'' ?>>
+                <label class="form-check-label" for="pmPaypal"><i class="bi bi-paypal"></i> PayPal</label>
+              </div>
+              <div class="form-check">
                 <input class="form-check-input" type="radio" name="payment_method" id="pmCard" value="card" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='card'?'checked':'' ?>>
-                <label class="form-check-label" for="pmCard">بطاقة فيزا / ماستر كارد</label>
+                <label class="form-check-label" for="pmCard">بطاقة (نموذج تجريبي)</label>
               </div>
             </div>
 
