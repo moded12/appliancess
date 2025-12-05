@@ -26,5 +26,20 @@ return [
 
   'timezone'     => 'Asia/Amman',
   'session_name' => 'appliance_session',
-  'debug'        => false
+  'debug'        => false,
+
+  // ========== Payment Gateway Settings ==========
+  // Stripe Settings (read from environment variables)
+  'stripe_publishable_key' => getenv('STRIPE_PUBLISHABLE_KEY') ?: '',
+  'stripe_secret_key'      => getenv('STRIPE_SECRET_KEY') ?: '',
+  'stripe_webhook_secret'  => getenv('STRIPE_WEBHOOK_SECRET') ?: '',
+
+  // PayPal Settings (read from environment variables)
+  'paypal_client_id'       => getenv('PAYPAL_CLIENT_ID') ?: '',
+  'paypal_secret'          => getenv('PAYPAL_SECRET') ?: '',
+  'paypal_mode'            => getenv('PAYPAL_MODE') ?: 'sandbox', // 'sandbox' or 'live'
+  'paypal_merchant_email'  => 'ajourisat@yahoo.com', // Reference only
+
+  // Default currency for payments
+  'default_currency'       => getenv('DEFAULT_CURRENCY') ?: 'USD',
 ];
