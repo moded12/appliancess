@@ -434,6 +434,7 @@ function capture_paypal_order(PDO $pdo, string $paypalOrderId, int $orderId): ar
 {
     $config = require __DIR__ . '/../config.php';
     $mode = $config['paypal_mode'] ?? 'sandbox';
+    $defaultCurrency = strtoupper($config['default_payment_currency'] ?? 'USD');
     
     $baseUrl = ($mode === 'live') 
         ? 'https://api-m.paypal.com' 
@@ -474,7 +475,7 @@ function capture_paypal_order(PDO $pdo, string $paypalOrderId, int $orderId): ar
             'paypal',
             $paypalOrderId,
             0,
-            'USD',
+            $defaultCurrency,
             'failed',
             $data
         );
@@ -485,14 +486,14 @@ function capture_paypal_order(PDO $pdo, string $paypalOrderId, int $orderId): ar
     $status = $data['status'] ?? '';
     $captureId = null;
     $capturedAmount = 0;
-    $currency = 'USD';
+    $currency = $defaultCurrency;
 
     // استخراج معلومات الـ capture
     if (!empty($data['purchase_units'][0]['payments']['captures'][0])) {
         $capture = $data['purchase_units'][0]['payments']['captures'][0];
         $captureId = $capture['id'] ?? null;
         $capturedAmount = (float)($capture['amount']['value'] ?? 0);
-        $currency = $capture['amount']['currency_code'] ?? 'USD';
+        $currency = $capture['amount']['currency_code'] ?? $defaultCurrency;
     }
 
     $paymentStatus = ($status === 'COMPLETED') ? 'paid' : 'pending';

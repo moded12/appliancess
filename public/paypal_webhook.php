@@ -102,12 +102,13 @@ try {
         case 'PAYMENT.CAPTURE.DECLINED':
             // تم رفض الدفعة
             $captureId = $resource['id'] ?? '';
+            $currency = $resource['amount']['currency_code'] ?? ($config['default_payment_currency'] ?? 'USD');
             
             // البحث عن سجل الدفع
             $stmt = $pdo->prepare(
-                "SELECT order_id FROM payments WHERE gateway = 'paypal' AND (transaction_id = :tid1 OR transaction_id LIKE :tid2) LIMIT 1"
+                "SELECT order_id FROM payments WHERE gateway = 'paypal' AND transaction_id = :tid LIMIT 1"
             );
-            $stmt->execute([':tid1' => $captureId, ':tid2' => '%' . $captureId . '%']);
+            $stmt->execute([':tid' => $captureId]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($row) {
@@ -118,7 +119,7 @@ try {
                     'paypal',
                     $captureId,
                     0,
-                    'USD',
+                    $currency,
                     'failed',
                     $resource
                 );
@@ -129,6 +130,7 @@ try {
         case 'PAYMENT.CAPTURE.REFUNDED':
             // تم استرداد الدفعة
             $captureId = $resource['id'] ?? '';
+            $currency = $resource['amount']['currency_code'] ?? ($config['default_payment_currency'] ?? 'USD');
             
             $stmt = $pdo->prepare(
                 "SELECT order_id FROM payments WHERE gateway = 'paypal' AND transaction_id = :tid LIMIT 1"
@@ -144,7 +146,7 @@ try {
                     'paypal',
                     $captureId,
                     0,
-                    'USD',
+                    $currency,
                     'refunded',
                     $resource
                 );

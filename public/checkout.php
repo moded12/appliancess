@@ -288,9 +288,9 @@ $title = 'إتمام الشراء';
                 <input class="form-check-input" type="radio" name="payment_method" id="pmPaypal" value="paypal" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='paypal'?'checked':'' ?>>
                 <label class="form-check-label" for="pmPaypal"><i class="bi bi-paypal"></i> PayPal</label>
               </div>
-              <div class="form-check">
+              <div class="form-check text-muted">
                 <input class="form-check-input" type="radio" name="payment_method" id="pmCard" value="card" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='card'?'checked':'' ?>>
-                <label class="form-check-label" for="pmCard">بطاقة (نموذج تجريبي)</label>
+                <label class="form-check-label" for="pmCard"><small>بطاقة يدوية (للتطوير فقط - استخدم Stripe للإنتاج)</small></label>
               </div>
             </div>
 

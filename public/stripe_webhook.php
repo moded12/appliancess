@@ -101,9 +101,9 @@ try {
             
             // البحث عن سجل الدفع بناءً على payment_intent أو session_id
             $stmt = $pdo->prepare(
-                "SELECT order_id FROM payments WHERE gateway = 'stripe' AND (transaction_id = :tid1 OR transaction_id LIKE :tid2) LIMIT 1"
+                "SELECT order_id FROM payments WHERE gateway = 'stripe' AND transaction_id = :tid LIMIT 1"
             );
-            $stmt->execute([':tid1' => $paymentIntentId, ':tid2' => '%' . $paymentIntentId . '%']);
+            $stmt->execute([':tid' => $paymentIntentId]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($row) {
@@ -125,6 +125,7 @@ try {
         case 'payment_intent.payment_failed':
             // الدفع فشل
             $paymentIntentId = $eventData->id;
+            $currency = strtoupper($eventData->currency ?? ($config['default_payment_currency'] ?? 'USD'));
             
             // البحث عن سجل الدفع
             $stmt = $pdo->prepare(
@@ -141,7 +142,7 @@ try {
                     'stripe',
                     $paymentIntentId,
                     0,
-                    'USD',
+                    $currency,
                     'failed',
                     (array)$eventData
                 );
