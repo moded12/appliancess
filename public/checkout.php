@@ -5,6 +5,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/functions.php'; // تأكد أنه يحتوي csrf_token / csrf_check
+require_once __DIR__ . '/../includes/payments.php'; // دوال الدفع Stripe و PayPal
 $config = require __DIR__ . '/../config.php';
 
 if (session_status() !== PHP_SESSION_ACTIVE) session_start();
@@ -48,6 +49,15 @@ $msg = '';
 $orderCreated = false;
 $orderId = null;
 
+// التحقق من رسائل الإلغاء
+if (isset($_GET['cancelled']) && $_GET['cancelled'] === '1') {
+  $cancelledOrderId = (int)($_GET['order_id'] ?? 0);
+  $err = 'تم إلغاء عملية الدفع.';
+  if ($cancelledOrderId > 0) {
+    $err .= ' رقم الطلب: ' . $cancelledOrderId . '. يمكنك المحاولة مرة أخرى.';
+  }
+}
+
 // عند الإرسال
 if ($_SERVER['REQUEST_METHOD']==='POST') {
   if (!csrf_check($_POST['csrf'] ?? '')) {
@@ -58,11 +68,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     $name    = trim($_POST['name'] ?? '');
     $phone   = trim($_POST['phone'] ?? '');
     $address = trim($_POST['address'] ?? '');
-    $method  = $_POST['payment_method'] ?? 'cod'; // cod | cliq | card
+    $method  = $_POST['payment_method'] ?? 'cod'; // cod | cliq | card | stripe | paypal
 
     if ($name==='' || $phone==='' || $address==='') {
       $err = 'يرجى تعبئة جميع الحقول.';
-    } elseif (!in_array($method, ['cod','cliq','card'], true)) {
+    } elseif (!in_array($method, ['cod','cliq','card','stripe','paypal'], true)) {
       $err = 'طريقة دفع غير صالحة.';
     } else {
 
@@ -78,6 +88,14 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
       } elseif ($method === 'card') {
         $gateway = 'card_stub';
         $paymentStatus = 'initiated';
+        $orderStatus = 'waiting_payment';
+      } elseif ($method === 'stripe') {
+        $gateway = 'stripe';
+        $paymentStatus = 'pending';
+        $orderStatus = 'waiting_payment';
+      } elseif ($method === 'paypal') {
+        $gateway = 'paypal';
+        $paymentStatus = 'pending';
         $orderStatus = 'waiting_payment';
       } else { // cod
         $gateway = 'cod';
@@ -171,17 +189,72 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
 
           $pdo->commit();
 
-          $_SESSION['cart'] = []; // تفريغ السلة بعد إنشاء الطلب
-          $orderCreated = true;
+          // معالجة طرق الدفع المختلفة
+          if ($method === 'stripe') {
+            // إنشاء جلسة Stripe Checkout
+            $stripeResult = createStripeCheckoutSession($orderId, $items, $total, 'USD');
+            if ($stripeResult['success']) {
+              // حفظ معرّف الجلسة في قاعدة البيانات
+              $updateMeta = $pdo->prepare('UPDATE orders SET payment_meta = :meta WHERE id = :id');
+              $updateMeta->execute([
+                ':meta' => json_encode(['stripe_session_id' => $stripeResult['session_id']]),
+                ':id' => $orderId
+              ]);
+              
+              // تفريغ السلة قبل التوجيه
+              $_SESSION['cart'] = [];
+              
+              // إعادة التوجيه إلى Stripe Checkout
+              header('Location: ' . $stripeResult['checkout_url']);
+              exit;
+            } else {
+              $err = 'خطأ في إنشاء جلسة الدفع: ' . ($stripeResult['error'] ?? 'Unknown error');
+              // التراجع عن الطلب
+              $pdo->beginTransaction();
+              $pdo->prepare('DELETE FROM order_items WHERE order_id = :id')->execute([':id' => $orderId]);
+              $pdo->prepare('DELETE FROM orders WHERE id = :id')->execute([':id' => $orderId]);
+              $pdo->commit();
+              $orderId = null;
+            }
+          } elseif ($method === 'paypal') {
+            // إنشاء طلب PayPal
+            $paypalResult = createPayPalOrder($orderId, $items, $total, 'USD');
+            if ($paypalResult['success']) {
+              // حفظ معرّف الطلب في قاعدة البيانات
+              $updateMeta = $pdo->prepare('UPDATE orders SET payment_meta = :meta WHERE id = :id');
+              $updateMeta->execute([
+                ':meta' => json_encode(['paypal_order_id' => $paypalResult['paypal_order_id']]),
+                ':id' => $orderId
+              ]);
+              
+              // تفريغ السلة قبل التوجيه
+              $_SESSION['cart'] = [];
+              
+              // إعادة التوجيه إلى PayPal
+              header('Location: ' . $paypalResult['approval_url']);
+              exit;
+            } else {
+              $err = 'خطأ في إنشاء طلب PayPal: ' . ($paypalResult['error'] ?? 'Unknown error');
+              // التراجع عن الطلب
+              $pdo->beginTransaction();
+              $pdo->prepare('DELETE FROM order_items WHERE order_id = :id')->execute([':id' => $orderId]);
+              $pdo->prepare('DELETE FROM orders WHERE id = :id')->execute([':id' => $orderId]);
+              $pdo->commit();
+              $orderId = null;
+            }
+          } else {
+            $_SESSION['cart'] = []; // تفريغ السلة بعد إنشاء الطلب
+            $orderCreated = true;
 
-          if ($method === 'cod') {
-            $msg = 'تم إنشاء الطلب بنجاح. رقم الطلب: '.$orderId.' سيتم الدفع عند التوصيل.';
-          } elseif ($method === 'cliq') {
-            $msg = 'تم إنشاء الطلب رقم '.$orderId.' بانتظار التحويل عبر كليك. الرجاء تنفيذ التحويل ثم تزويدنا بمرجع التحويل عند المتابعة.';
-          } else { // card
-            // تحويل وهمي إلى صفحة بدء الدفع الفعلي
-            header('Location: payment_init.php?order='.$orderId);
-            exit;
+            if ($method === 'cod') {
+              $msg = 'تم إنشاء الطلب بنجاح. رقم الطلب: '.$orderId.' سيتم الدفع عند التوصيل.';
+            } elseif ($method === 'cliq') {
+              $msg = 'تم إنشاء الطلب رقم '.$orderId.' بانتظار التحويل عبر كليك. الرجاء تنفيذ التحويل ثم تزويدنا بمرجع التحويل عند المتابعة.';
+            } else { // card
+              // تحويل وهمي إلى صفحة بدء الدفع الفعلي
+              header('Location: payment_init.php?order='.$orderId);
+              exit;
+            }
           }
 
         } catch (Throwable $e) {
@@ -258,15 +331,37 @@ $title = 'إتمام الشراء';
               <label class="form-label">طريقة الدفع</label>
               <div class="form-check">
                 <input class="form-check-input" type="radio" name="payment_method" id="pmCod" value="cod" <?= empty($_POST['payment_method'])||$_POST['payment_method']==='cod'?'checked':'' ?>>
-                <label class="form-check-label" for="pmCod">الدفع عند التوصيل (COD)</label>
+                <label class="form-check-label" for="pmCod"><i class="bi bi-cash-coin text-success"></i> الدفع عند التوصيل (COD)</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="payment_method" id="pmStripe" value="stripe" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='stripe'?'checked':'' ?>>
+                <label class="form-check-label" for="pmStripe"><i class="bi bi-credit-card text-primary"></i> بطاقة ائتمان (Visa / MasterCard) - Stripe</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="payment_method" id="pmPaypal" value="paypal" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='paypal'?'checked':'' ?>>
+                <label class="form-check-label" for="pmPaypal"><i class="bi bi-paypal text-info"></i> PayPal</label>
               </div>
               <div class="form-check">
                 <input class="form-check-input" type="radio" name="payment_method" id="pmCliq" value="cliq" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='cliq'?'checked':'' ?>>
-                <label class="form-check-label" for="pmCliq">الدفع كليك (تحويل فوري)</label>
+                <label class="form-check-label" for="pmCliq"><i class="bi bi-bank text-secondary"></i> الدفع كليك (تحويل فوري)</label>
               </div>
               <div class="form-check">
                 <input class="form-check-input" type="radio" name="payment_method" id="pmCard" value="card" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='card'?'checked':'' ?>>
-                <label class="form-check-label" for="pmCard">بطاقة فيزا / ماستر كارد</label>
+                <label class="form-check-label" for="pmCard"><i class="bi bi-credit-card-2-front text-warning"></i> بطاقة (نموذج تجريبي)</label>
+              </div>
+            </div>
+
+            <!-- معلومات Stripe -->
+            <div class="pay-box <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='stripe'?'active':'' ?>" id="boxStripe">
+              <div class="alert alert-info py-2 mb-2">
+                <i class="bi bi-shield-check"></i> سيتم توجيهك إلى صفحة Stripe الآمنة لإتمام الدفع ببطاقتك الائتمانية.
+              </div>
+            </div>
+
+            <!-- معلومات PayPal -->
+            <div class="pay-box <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='paypal'?'active':'' ?>" id="boxPaypal">
+              <div class="alert alert-info py-2 mb-2">
+                <i class="bi bi-paypal"></i> سيتم توجيهك إلى PayPal لإتمام الدفع بحسابك أو ببطاقتك.
               </div>
             </div>
 
@@ -349,11 +444,15 @@ $title = 'إتمام الشراء';
   const radios = document.querySelectorAll('input[name="payment_method"]');
   const boxCliq = document.getElementById('boxCliq');
   const boxCard = document.getElementById('boxCard');
+  const boxStripe = document.getElementById('boxStripe');
+  const boxPaypal = document.getElementById('boxPaypal');
 
   function updateBoxes() {
     const val = document.querySelector('input[name="payment_method"]:checked')?.value;
-    boxCliq.classList.toggle('active', val === 'cliq');
-    boxCard.classList.toggle('active', val === 'card');
+    if (boxCliq) boxCliq.classList.toggle('active', val === 'cliq');
+    if (boxCard) boxCard.classList.toggle('active', val === 'card');
+    if (boxStripe) boxStripe.classList.toggle('active', val === 'stripe');
+    if (boxPaypal) boxPaypal.classList.toggle('active', val === 'paypal');
   }
   radios.forEach(r => r.addEventListener('change', updateBoxes));
   updateBoxes();
