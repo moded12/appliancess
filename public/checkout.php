@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
 
     if ($name==='' || $phone==='' || $address==='') {
       $err = 'يرجى تعبئة جميع الحقول.';
-    } elseif (!in_array($method, ['cod','cliq','card'], true)) {
+    } elseif (!in_array($method, ['cod','cliq','card','stripe','paypal'], true)) {
       $err = 'طريقة دفع غير صالحة.';
     } else {
 
@@ -77,6 +77,14 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         $orderStatus = 'waiting_payment';
       } elseif ($method === 'card') {
         $gateway = 'card_stub';
+        $paymentStatus = 'initiated';
+        $orderStatus = 'waiting_payment';
+      } elseif ($method === 'stripe') {
+        $gateway = 'stripe';
+        $paymentStatus = 'initiated';
+        $orderStatus = 'waiting_payment';
+      } elseif ($method === 'paypal') {
+        $gateway = 'paypal';
         $paymentStatus = 'initiated';
         $orderStatus = 'waiting_payment';
       } else { // cod
@@ -178,6 +186,14 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             $msg = 'تم إنشاء الطلب بنجاح. رقم الطلب: '.$orderId.' سيتم الدفع عند التوصيل.';
           } elseif ($method === 'cliq') {
             $msg = 'تم إنشاء الطلب رقم '.$orderId.' بانتظار التحويل عبر كليك. الرجاء تنفيذ التحويل ثم تزويدنا بمرجع التحويل عند المتابعة.';
+          } elseif ($method === 'stripe') {
+            // توجيه إلى Stripe
+            header('Location: pay.php?order_id='.$orderId.'&gateway=stripe');
+            exit;
+          } elseif ($method === 'paypal') {
+            // توجيه إلى PayPal
+            header('Location: pay.php?order_id='.$orderId.'&gateway=paypal');
+            exit;
           } else { // card
             // تحويل وهمي إلى صفحة بدء الدفع الفعلي
             header('Location: payment_init.php?order='.$orderId);
@@ -266,7 +282,19 @@ $title = 'إتمام الشراء';
               </div>
               <div class="form-check">
                 <input class="form-check-input" type="radio" name="payment_method" id="pmCard" value="card" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='card'?'checked':'' ?>>
-                <label class="form-check-label" for="pmCard">بطاقة فيزا / ماستر كارد</label>
+                <label class="form-check-label" for="pmCard">بطاقة فيزا / ماستر كارد (نموذج)</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="payment_method" id="pmStripe" value="stripe" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='stripe'?'checked':'' ?>>
+                <label class="form-check-label" for="pmStripe">
+                  <i class="bi bi-credit-card"></i> الدفع ببطاقة عبر Stripe
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="payment_method" id="pmPaypal" value="paypal" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='paypal'?'checked':'' ?>>
+                <label class="form-check-label" for="pmPaypal">
+                  <i class="bi bi-paypal"></i> الدفع عبر PayPal
+                </label>
               </div>
             </div>
 
@@ -310,6 +338,22 @@ $title = 'إتمام الشراء';
               </div>
             </div>
 
+            <!-- صندوق Stripe -->
+            <div class="pay-box <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='stripe'?'active':'' ?>" id="boxStripe">
+              <div class="alert alert-info mb-0">
+                <h6 class="fw-semibold"><i class="bi bi-credit-card"></i> الدفع الآمن عبر Stripe</h6>
+                <p class="mb-0 small">بعد تأكيد الطلب، سيتم توجيهك إلى صفحة Stripe الآمنة لإتمام الدفع ببطاقتك الائتمانية.</p>
+              </div>
+            </div>
+
+            <!-- صندوق PayPal -->
+            <div class="pay-box <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='paypal'?'active':'' ?>" id="boxPaypal">
+              <div class="alert alert-primary mb-0">
+                <h6 class="fw-semibold"><i class="bi bi-paypal"></i> الدفع عبر PayPal</h6>
+                <p class="mb-0 small">بعد تأكيد الطلب، سيتم توجيهك إلى PayPal لتسجيل الدخول وإتمام الدفع بأمان.</p>
+              </div>
+            </div>
+
             <div class="d-flex gap-2 mt-3">
               <button class="btn btn-success rounded-pill"><i class="bi bi-check2-circle"></i> تأكيد الطلب</button>
               <a href="cart.php" class="btn btn-outline-secondary rounded-pill">عودة للسلة</a>
@@ -349,11 +393,15 @@ $title = 'إتمام الشراء';
   const radios = document.querySelectorAll('input[name="payment_method"]');
   const boxCliq = document.getElementById('boxCliq');
   const boxCard = document.getElementById('boxCard');
+  const boxStripe = document.getElementById('boxStripe');
+  const boxPaypal = document.getElementById('boxPaypal');
 
   function updateBoxes() {
     const val = document.querySelector('input[name="payment_method"]:checked')?.value;
     boxCliq.classList.toggle('active', val === 'cliq');
     boxCard.classList.toggle('active', val === 'card');
+    boxStripe.classList.toggle('active', val === 'stripe');
+    boxPaypal.classList.toggle('active', val === 'paypal');
   }
   radios.forEach(r => r.addEventListener('change', updateBoxes));
   updateBoxes();

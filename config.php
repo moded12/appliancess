@@ -26,5 +26,25 @@ return [
 
   'timezone'     => 'Asia/Amman',
   'session_name' => 'appliance_session',
-  'debug'        => false
+  'debug'        => false,
+
+  // =============================================================
+  // إعدادات بوابات الدفع - Payment Gateway Settings
+  // يُفضّل تعريف هذه القيم عبر متغيّرات البيئة (environment variables)
+  // لأغراض الأمان. القيم أدناه للتوضيح فقط ويجب عدم إدخال مفاتيح حقيقية.
+  // =============================================================
+
+  // Stripe Settings (استخدم مفاتيح sandbox/test للتطوير)
+  'stripe_publishable_key' => getenv('STRIPE_PUBLISHABLE_KEY') ?: '',
+  'stripe_secret_key'      => getenv('STRIPE_SECRET_KEY') ?: '',
+  'stripe_webhook_secret'  => getenv('STRIPE_WEBHOOK_SECRET') ?: '',
+
+  // PayPal Settings (استخدم sandbox للتطوير)
+  'paypal_client_id'       => getenv('PAYPAL_CLIENT_ID') ?: '',
+  'paypal_secret'          => getenv('PAYPAL_SECRET') ?: '',
+  'paypal_mode'            => getenv('PAYPAL_MODE') ?: 'sandbox', // sandbox أو live
+  'paypal_merchant_email'  => 'ajourisat@yahoo.com', // بريد التاجر في PayPal
+
+  // العملة الافتراضية للدفع
+  'default_currency'       => getenv('DEFAULT_CURRENCY') ?: 'USD',
 ];

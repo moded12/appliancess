@@ -17,6 +17,7 @@ if (empty($_SESSION['admin'])) {
 
 // اتصالات أساسية
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/payments.php';
 $config = require __DIR__ . '/../config.php';
 $base   = rtrim($config['base_url'] ?? '', '/');
 
@@ -133,6 +134,9 @@ if (!empty($order['customer_id'])) {
     $recentOrders = $rs->fetchAll(PDO::FETCH_ASSOC);
   } catch (Throwable $e) { /* تجاهل */ }
 }
+
+// جلب سجلات المدفوعات للطلب
+$paymentRecords = get_payments_by_order($pdo, $orderId);
 ?>
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -296,6 +300,47 @@ if (!empty($order['customer_id'])) {
         <?php endif; ?>
       </div>
     </div>
+  </div>
+
+  <!-- سجلات المدفوعات -->
+  <div class="card-soft mt-3">
+    <h2 class="h6 fw-bold mb-3">سجلات المدفوعات (Payments)</h2>
+    <?php if (empty($paymentRecords)): ?>
+      <div class="text-muted small">لا توجد سجلات مدفوعات لهذا الطلب.</div>
+    <?php else: ?>
+      <div class="table-responsive">
+        <table class="table table-striped table-sm align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>البوابة</th>
+              <th>رقم المعاملة</th>
+              <th>المبلغ</th>
+              <th>الحالة</th>
+              <th>التاريخ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($paymentRecords as $pr): 
+              $prStatus = $pr['status'] ?? 'pending';
+              $statusClass = 'pay-pending';
+              if ($prStatus === 'completed') $statusClass = 'pay-paid';
+              elseif ($prStatus === 'failed') $statusClass = 'pay-failed';
+              elseif ($prStatus === 'refunded') $statusClass = 'pay-await';
+            ?>
+              <tr>
+                <td><?= (int)$pr['id'] ?></td>
+                <td><span class="badge bg-secondary"><?= e($pr['gateway'] ?? '—') ?></span></td>
+                <td class="small"><?= e($pr['transaction_id'] ?? '—') ?></td>
+                <td><?= number_format((float)($pr['amount'] ?? 0), 2) ?> <?= e($pr['currency'] ?? 'USD') ?></td>
+                <td><span class="payment-badge <?= $statusClass ?>"><?= e($prStatus) ?></span></td>
+                <td class="small"><?= e($pr['created_at'] ?? '') ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php endif; ?>
   </div>
 
   <div class="mt-3 d-flex gap-2">
