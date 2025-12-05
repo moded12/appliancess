@@ -26,5 +26,19 @@ return [
 
   'timezone'     => 'Asia/Amman',
   'session_name' => 'appliance_session',
-  'debug'        => false
+  'debug'        => false,
+
+  // ==================== إعدادات بوابات الدفع ====================
+  // Stripe - استخدم مفاتيح sandbox للتجربة
+  'stripe_publishable_key' => getenv('STRIPE_PUBLISHABLE_KEY') ?: '',
+  'stripe_secret_key'      => getenv('STRIPE_SECRET_KEY') ?: '',
+  'stripe_webhook_secret'  => getenv('STRIPE_WEBHOOK_SECRET') ?: '',
+
+  // PayPal - استخدم مفاتيح sandbox للتجربة
+  'paypal_client_id'       => getenv('PAYPAL_CLIENT_ID') ?: '',
+  'paypal_secret'          => getenv('PAYPAL_SECRET') ?: '',
+  'paypal_mode'            => getenv('PAYPAL_MODE') ?: 'sandbox', // sandbox أو live
+
+  // العملة الافتراضية لبوابات الدفع (يجب أن تكون مدعومة من Stripe و PayPal)
+  'default_payment_currency' => 'USD',
 ];
