@@ -184,6 +184,7 @@ if (!empty($order['customer_id'])) {
           $cls = 'pay-pending';
           if ($ps==='paid') $cls='pay-paid';
           elseif ($ps==='failed') $cls='pay-failed';
+          elseif ($ps==='refunded') $cls='pay-failed';
           elseif ($ps==='awaiting_transfer' || $ps==='initiated') $cls='pay-await';
         ?>
         <div class="small mb-1"><strong>طريقة الدفع:</strong> <?= e($payment_method ?? '—') ?></div>
@@ -192,10 +193,53 @@ if (!empty($order['customer_id'])) {
           <span class="payment-badge <?= $cls ?>"><?= e($ps) ?></span>
         </div>
         <?php if (!empty($transaction_id)): ?>
-          <div class="small mb-1"><strong>رقم المعاملة:</strong> <?= e($transaction_id) ?></div>
+          <div class="small mb-1">
+            <strong>رقم المعاملة:</strong> 
+            <code class="small"><?= e($transaction_id) ?></code>
+            <?php 
+            // روابط بوابات الدفع
+            $gatewayLink = '';
+            if ($gateway === 'stripe' && !empty($transaction_id)) {
+                // رابط Stripe Dashboard (يعمل فقط للمسؤولين)
+                $gatewayLink = 'https://dashboard.stripe.com/payments/' . urlencode($transaction_id);
+            } elseif ($gateway === 'paypal' && !empty($transaction_id)) {
+                // رابط PayPal (sandbox أو live)
+                $config = require __DIR__ . '/../config.php';
+                $paypalMode = $config['paypal']['mode'] ?? 'sandbox';
+                if ($paypalMode === 'sandbox') {
+                    $gatewayLink = 'https://www.sandbox.paypal.com/activity/payment/' . urlencode($transaction_id);
+                } else {
+                    $gatewayLink = 'https://www.paypal.com/activity/payment/' . urlencode($transaction_id);
+                }
+            }
+            if ($gatewayLink): ?>
+              <a href="<?= e($gatewayLink) ?>" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2 ms-2" title="فتح في بوابة الدفع">
+                <i class="bi bi-box-arrow-up-right"></i>
+              </a>
+            <?php endif; ?>
+          </div>
         <?php endif; ?>
         <?php if (!empty($gateway)): ?>
-          <div class="small mb-1"><strong>البوابة:</strong> <?= e($gateway) ?></div>
+          <div class="small mb-1">
+            <strong>البوابة:</strong> 
+            <?php
+            $gatewayLabels = [
+                'stripe' => '<i class="bi bi-credit-card text-primary"></i> Stripe',
+                'paypal' => '<i class="bi bi-paypal text-info"></i> PayPal',
+                'cod' => '<i class="bi bi-cash-coin text-success"></i> الدفع عند التوصيل',
+                'cliq' => '<i class="bi bi-bank text-secondary"></i> كليك',
+            ];
+            echo $gatewayLabels[$gateway] ?? e($gateway);
+            ?>
+          </div>
+        <?php endif; ?>
+        
+        <?php if ($ps === 'pending' && in_array($gateway, ['stripe', 'paypal'])): ?>
+          <div class="mt-2">
+            <a href="<?= $base ?>/public/checkout.php?retry_order=<?= (int)$orderId ?>" class="btn btn-sm btn-warning rounded-pill">
+              <i class="bi bi-arrow-repeat"></i> إعادة محاولة الدفع
+            </a>
+          </div>
         <?php endif; ?>
       </div>
     </div>

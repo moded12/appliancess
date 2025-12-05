@@ -56,11 +56,16 @@ CREATE TABLE IF NOT EXISTS orders (
   id INT AUTO_INCREMENT PRIMARY KEY,
   customer_id INT NULL,
   total DECIMAL(10,2) NOT NULL DEFAULT 0,
-  payment_method ENUM('cod','stripe') NOT NULL DEFAULT 'cod',
-  payment_status ENUM('pending','paid','failed') NOT NULL DEFAULT 'pending',
-  status ENUM('new','processing','shipped','completed','cancelled') NOT NULL DEFAULT 'new',
+  payment_method ENUM('cod','stripe','paypal','cliq','card') NOT NULL DEFAULT 'cod',
+  payment_status ENUM('pending','paid','failed','refunded','awaiting_transfer','initiated') NOT NULL DEFAULT 'pending',
+  gateway VARCHAR(50) NULL,
+  transaction_id VARCHAR(255) NULL,
+  payment_meta JSON NULL,
+  status ENUM('new','processing','shipped','completed','cancelled','waiting_payment') NOT NULL DEFAULT 'new',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+  INDEX idx_transaction_id (transaction_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Order items
@@ -73,6 +78,24 @@ CREATE TABLE IF NOT EXISTS order_items (
   qty INT NOT NULL DEFAULT 1,
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
   FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Payments (for PayPal and Stripe integration)
+CREATE TABLE IF NOT EXISTS payments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  order_id INT NOT NULL,
+  gateway ENUM('paypal', 'stripe', 'cod', 'cliq') NOT NULL,
+  transaction_id VARCHAR(255) NULL,
+  amount DECIMAL(10, 2) NOT NULL,
+  currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+  status ENUM('pending', 'paid', 'failed', 'refunded', 'cancelled') NOT NULL DEFAULT 'pending',
+  gateway_response TEXT NULL COMMENT 'JSON response from payment gateway',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  INDEX idx_transaction (transaction_id),
+  INDEX idx_order_gateway (order_id, gateway),
+  INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Seed data

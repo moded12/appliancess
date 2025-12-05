@@ -26,5 +26,24 @@ return [
 
   'timezone'     => 'Asia/Amman',
   'session_name' => 'appliance_session',
-  'debug'        => false
+  'debug'        => false,
+
+  // ===== إعدادات بوابات الدفع (Payment Gateways) =====
+  // Stripe Settings
+  // يفضل استخدام متغيرات البيئة (.env) في الإنتاج
+  // STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET
+  'stripe' => [
+    'secret_key'      => getenv('STRIPE_SECRET_KEY') ?: '',
+    'publishable_key' => getenv('STRIPE_PUBLISHABLE_KEY') ?: '',
+    'webhook_secret'  => getenv('STRIPE_WEBHOOK_SECRET') ?: '',
+  ],
+
+  // PayPal Settings
+  // يفضل استخدام متغيرات البيئة (.env) في الإنتاج
+  // PAYPAL_CLIENT_ID, PAYPAL_SECRET, PAYPAL_MODE
+  'paypal' => [
+    'client_id'     => getenv('PAYPAL_CLIENT_ID') ?: '',
+    'client_secret' => getenv('PAYPAL_SECRET') ?: '',
+    'mode'          => getenv('PAYPAL_MODE') ?: 'sandbox', // 'sandbox' or 'live'
+  ],
 ];
