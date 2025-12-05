@@ -564,7 +564,8 @@ function verify_stripe_webhook(string $payload, string $sigHeader, string $secre
     
     if (class_exists('\Stripe\Webhook')) {
         try {
-            \Stripe\Stripe::setApiKey($GLOBALS['config']['stripe_secret_key'] ?? '');
+            $config = require __DIR__ . '/../config.php';
+            \Stripe\Stripe::setApiKey($config['stripe_secret_key'] ?? '');
             $event = \Stripe\Webhook::constructEvent($payload, $sigHeader, $secret);
             return ['success' => true, 'event' => $event];
         } catch (\Stripe\Exception\SignatureVerificationException $e) {
