@@ -28,12 +28,13 @@ if (!function_exists('e')) {
 $error = '';
 $success = false;
 $orderId = (int)($_GET['order_id'] ?? 0);
-$paypalToken = $_GET['token'] ?? '';
+// PayPal returns the Order ID as the 'token' parameter in the return URL
+$paypalOrderId = $_GET['token'] ?? '';
 
 if ($orderId <= 0) {
     $error = 'رقم الطلب غير صالح.';
-} elseif (empty($paypalToken)) {
-    $error = 'رمز PayPal غير صالح.';
+} elseif (empty($paypalOrderId)) {
+    $error = 'معرف طلب PayPal غير صالح.';
 } else {
     // Get order
     $order = get_order($pdo, $orderId);
@@ -45,8 +46,8 @@ if ($orderId <= 0) {
         header('Location: order_view.php?id=' . $orderId . '&payment=success');
         exit;
     } else {
-        // Capture the PayPal payment
-        $captureResult = capture_paypal_payment($paypalToken);
+        // Capture the PayPal payment using the PayPal Order ID
+        $captureResult = capture_paypal_payment($paypalOrderId);
         
         if ($captureResult['success']) {
             try {
@@ -58,7 +59,7 @@ if ($orderId <= 0) {
                     $orderId,
                     'paypal',
                     'completed',
-                    $captureResult['capture_id'] ?? $paypalToken,
+                    $captureResult['capture_id'] ?? $paypalOrderId,
                     $captureResult['raw_response'] ?? null
                 );
                 

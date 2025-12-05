@@ -244,9 +244,22 @@ function paypal_api_url(): string {
 }
 
 /**
- * Get PayPal OAuth access token
+ * Get PayPal OAuth access token with caching
+ * Tokens are cached to avoid unnecessary API calls (valid for ~9 hours)
  */
 function paypal_get_access_token(string $clientId, string $secret, string $modeUrl): ?string {
+    // Cache key based on credentials (hashed for security)
+    static $tokenCache = [];
+    $cacheKey = md5($clientId . $modeUrl);
+    
+    // Check if we have a cached token that's still valid (with 5-min buffer)
+    if (isset($tokenCache[$cacheKey])) {
+        $cached = $tokenCache[$cacheKey];
+        if (time() < ($cached['expires_at'] - 300)) {
+            return $cached['access_token'];
+        }
+    }
+    
     $ch = curl_init();
     
     curl_setopt_array($ch, [
@@ -271,7 +284,18 @@ function paypal_get_access_token(string $clientId, string $secret, string $modeU
     }
     
     $data = json_decode($response, true);
-    return $data['access_token'] ?? null;
+    $accessToken = $data['access_token'] ?? null;
+    
+    if ($accessToken) {
+        // Cache the token with expiration (default 9 hours, but use returned expires_in)
+        $expiresIn = (int)($data['expires_in'] ?? 32400);
+        $tokenCache[$cacheKey] = [
+            'access_token' => $accessToken,
+            'expires_at' => time() + $expiresIn,
+        ];
+    }
+    
+    return $accessToken;
 }
 
 /**
