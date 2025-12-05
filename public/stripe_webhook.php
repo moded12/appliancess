@@ -28,12 +28,18 @@ if (empty($payload)) {
 
 // التحقق من التوقيع
 $webhookSecret = $config['stripe_webhook_secret'] ?? '';
-if (!empty($webhookSecret)) {
-    if (!verify_stripe_webhook_signature($payload, $sigHeader, $webhookSecret)) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Invalid signature']);
-        exit;
-    }
+if (empty($webhookSecret)) {
+    // في حالة عدم تعيين webhook secret، نسجل تحذيراً ونرفض الطلب للأمان
+    error_log("Stripe webhook secret not configured - rejecting webhook for security");
+    http_response_code(400);
+    echo json_encode(['error' => 'Webhook secret not configured']);
+    exit;
+}
+
+if (!verify_stripe_webhook_signature($payload, $sigHeader, $webhookSecret)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Invalid signature']);
+    exit;
 }
 
 // تحليل الحدث

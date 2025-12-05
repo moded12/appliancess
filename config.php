@@ -43,7 +43,8 @@ return [
   'paypal_client_id'       => getenv('PAYPAL_CLIENT_ID') ?: '',
   'paypal_secret'          => getenv('PAYPAL_SECRET') ?: '',
   'paypal_mode'            => getenv('PAYPAL_MODE') ?: 'sandbox', // sandbox أو live
-  'paypal_merchant_email'  => 'ajourisat@yahoo.com', // بريد التاجر في PayPal
+  'paypal_merchant_email'  => getenv('PAYPAL_MERCHANT_EMAIL') ?: '', // بريد التاجر في PayPal
+  'paypal_webhook_id'      => getenv('PAYPAL_WEBHOOK_ID') ?: '', // معرف webhook للتحقق من التوقيع
 
   // العملة الافتراضية للدفع
   'default_currency'       => getenv('DEFAULT_CURRENCY') ?: 'USD',

@@ -250,7 +250,7 @@ function create_stripe_session(
             // تسجيل عملية الدفع
             record_payment($pdo, $orderId, 'stripe', $session->id, $amount, $currency, 'pending', [
                 'session_id' => $session->id,
-                'created' => time(),
+                'created' => date('Y-m-d H:i:s'),
             ]);
             
             return [
@@ -621,23 +621,33 @@ function get_paypal_order_details(string $paypalOrderId): ?array {
 }
 
 /**
- * التحقق من توقيع PayPal Webhook (أساسي)
- * ملاحظة: للتحقق الكامل يجب استخدام PayPal Webhook Signature Verification API
+ * التحقق من توقيع PayPal Webhook
+ * يستخدم PayPal Webhook Signature Verification API
  */
 function verify_paypal_webhook(string $payload, array $headers): bool {
-    // في الإنتاج يجب التحقق من التوقيع باستخدام PayPal API
-    // هذا تنفيذ مبسط يتحقق من وجود الـ headers الأساسية
+    $config = get_payments_config();
+    $webhookId = $config['paypal_webhook_id'] ?? '';
+    
+    // إذا لم يكن webhook_id محدداً، نرفض الطلب
+    if (empty($webhookId)) {
+        error_log("PayPal webhook_id not configured - rejecting webhook for security");
+        return false;
+    }
+    
+    // تحويل الـ headers إلى lowercase
+    $normalizedHeaders = [];
+    foreach ($headers as $key => $value) {
+        $normalizedHeaders[strtolower($key)] = $value;
+    }
+    
+    // التحقق من وجود الـ headers الأساسية
     $requiredHeaders = [
         'paypal-transmission-id',
         'paypal-transmission-time',
         'paypal-transmission-sig',
         'paypal-cert-url',
+        'paypal-auth-algo',
     ];
-    
-    $normalizedHeaders = [];
-    foreach ($headers as $key => $value) {
-        $normalizedHeaders[strtolower($key)] = $value;
-    }
     
     foreach ($requiredHeaders as $header) {
         if (empty($normalizedHeaders[$header])) {
@@ -646,8 +656,52 @@ function verify_paypal_webhook(string $payload, array $headers): bool {
         }
     }
     
-    // للتحقق الكامل، يجب إرسال طلب إلى PayPal للتحقق من التوقيع
-    // /v1/notifications/verify-webhook-signature
+    // استخدام PayPal API للتحقق من التوقيع
+    $accessToken = paypal_get_access_token();
+    if (!$accessToken) {
+        error_log("Failed to get PayPal access token for webhook verification");
+        return false;
+    }
     
-    return true; // مؤقتاً نقبل الطلب إذا كانت الـ headers موجودة
+    $verifyUrl = paypal_api_url() . '/v1/notifications/verify-webhook-signature';
+    
+    $verifyData = [
+        'auth_algo' => $normalizedHeaders['paypal-auth-algo'],
+        'cert_url' => $normalizedHeaders['paypal-cert-url'],
+        'transmission_id' => $normalizedHeaders['paypal-transmission-id'],
+        'transmission_sig' => $normalizedHeaders['paypal-transmission-sig'],
+        'transmission_time' => $normalizedHeaders['paypal-transmission-time'],
+        'webhook_id' => $webhookId,
+        'webhook_event' => json_decode($payload, true),
+    ];
+    
+    $ch = curl_init($verifyUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($verifyData),
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $accessToken,
+        ],
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode !== 200) {
+        error_log("PayPal webhook verification request failed with HTTP code: " . $httpCode);
+        return false;
+    }
+    
+    $result = json_decode($response, true);
+    $verificationStatus = $result['verification_status'] ?? '';
+    
+    if ($verificationStatus !== 'SUCCESS') {
+        error_log("PayPal webhook verification failed: " . $verificationStatus);
+        return false;
+    }
+    
+    return true;
 }

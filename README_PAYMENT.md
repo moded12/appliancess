@@ -78,6 +78,8 @@ export STRIPE_WEBHOOK_SECRET="whsec_XXXXXXXXXX"
 export PAYPAL_CLIENT_ID="your_client_id"
 export PAYPAL_SECRET="your_secret"
 export PAYPAL_MODE="sandbox"  # Use "live" for production
+export PAYPAL_MERCHANT_EMAIL="ajourisat@yahoo.com"  # Merchant email
+export PAYPAL_WEBHOOK_ID="your_webhook_id"  # For webhook signature verification
 
 # Currency
 export DEFAULT_CURRENCY="USD"
