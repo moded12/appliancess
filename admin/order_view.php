@@ -133,6 +133,17 @@ if (!empty($order['customer_id'])) {
     $recentOrders = $rs->fetchAll(PDO::FETCH_ASSOC);
   } catch (Throwable $e) { /* تجاهل */ }
 }
+
+// جلب سجلات الدفع المرتبطة بالطلب من جدول payments
+$paymentRecords = [];
+try {
+  $pst = $pdo->prepare("SELECT * FROM payments WHERE order_id = :oid ORDER BY created_at DESC");
+  $pst->execute([':oid' => $orderId]);
+  $paymentRecords = $pst->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+  // جدول payments قد لا يكون موجوداً بعد
+  $paymentRecords = [];
+}
 ?>
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -261,6 +272,47 @@ if (!empty($order['customer_id'])) {
       </div>
     <?php endif; ?>
   </div>
+
+  <!-- سجلات المدفوعات من جدول payments -->
+  <?php if (!empty($paymentRecords)): ?>
+  <div class="card-soft mb-3">
+    <h2 class="h6 fw-bold mb-3"><i class="bi bi-credit-card"></i> سجلات المدفوعات (Payment Records)</h2>
+    <div class="table-responsive">
+      <table class="table table-sm table-striped align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>البوابة</th>
+            <th>رقم المعاملة</th>
+            <th>المبلغ</th>
+            <th>العملة</th>
+            <th>الحالة</th>
+            <th>التاريخ</th>
+          </tr>
+        </thead>
+        <tbody>
+        <?php foreach ($paymentRecords as $pr): 
+          $prStatus = $pr['status'] ?? 'pending';
+          $prCls = 'pay-pending';
+          if ($prStatus === 'completed') $prCls = 'pay-paid';
+          elseif ($prStatus === 'failed') $prCls = 'pay-failed';
+          elseif ($prStatus === 'processing') $prCls = 'pay-await';
+        ?>
+          <tr>
+            <td><?= (int)$pr['id'] ?></td>
+            <td><span class="badge bg-secondary"><?= e($pr['gateway'] ?? '—') ?></span></td>
+            <td class="small"><?= e($pr['transaction_id'] ?? '—') ?></td>
+            <td><?= number_format((float)($pr['amount'] ?? 0), 2) ?></td>
+            <td><?= e($pr['currency'] ?? 'USD') ?></td>
+            <td><span class="payment-badge <?= $prCls ?>"><?= e($prStatus) ?></span></td>
+            <td class="small"><?= e($pr['created_at'] ?? '') ?></td>
+          </tr>
+        <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <?php endif; ?>
 
   <!-- تفاصيل الدفع الإضافية -->
   <div class="row g-3">

@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
 
     if ($name==='' || $phone==='' || $address==='') {
       $err = 'يرجى تعبئة جميع الحقول.';
-    } elseif (!in_array($method, ['cod','cliq','card'], true)) {
+    } elseif (!in_array($method, ['cod','cliq','card','stripe','paypal'], true)) {
       $err = 'طريقة دفع غير صالحة.';
     } else {
 
@@ -77,6 +77,14 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         $orderStatus = 'waiting_payment';
       } elseif ($method === 'card') {
         $gateway = 'card_stub';
+        $paymentStatus = 'initiated';
+        $orderStatus = 'waiting_payment';
+      } elseif ($method === 'stripe') {
+        $gateway = 'stripe';
+        $paymentStatus = 'initiated';
+        $orderStatus = 'waiting_payment';
+      } elseif ($method === 'paypal') {
+        $gateway = 'paypal';
         $paymentStatus = 'initiated';
         $orderStatus = 'waiting_payment';
       } else { // cod
@@ -178,7 +186,17 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             $msg = 'تم إنشاء الطلب بنجاح. رقم الطلب: '.$orderId.' سيتم الدفع عند التوصيل.';
           } elseif ($method === 'cliq') {
             $msg = 'تم إنشاء الطلب رقم '.$orderId.' بانتظار التحويل عبر كليك. الرجاء تنفيذ التحويل ثم تزويدنا بمرجع التحويل عند المتابعة.';
-          } else { // card
+          } elseif ($method === 'stripe' || $method === 'paypal') {
+            // Redirect to payment gateway via pay.php
+            // We need to POST to pay.php with order_id and gateway
+            $_SESSION['pending_payment'] = [
+              'order_id' => $orderId,
+              'gateway' => $method,
+              'csrf' => csrf_token(),
+            ];
+            header('Location: pay_redirect.php');
+            exit;
+          } else { // card (legacy)
             // تحويل وهمي إلى صفحة بدء الدفع الفعلي
             header('Location: payment_init.php?order='.$orderId);
             exit;
@@ -266,7 +284,19 @@ $title = 'إتمام الشراء';
               </div>
               <div class="form-check">
                 <input class="form-check-input" type="radio" name="payment_method" id="pmCard" value="card" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='card'?'checked':'' ?>>
-                <label class="form-check-label" for="pmCard">بطاقة فيزا / ماستر كارد</label>
+                <label class="form-check-label" for="pmCard">بطاقة فيزا / ماستر كارد (Legacy)</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="payment_method" id="pmStripe" value="stripe" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='stripe'?'checked':'' ?>>
+                <label class="form-check-label" for="pmStripe">
+                  <i class="bi bi-credit-card"></i> Stripe (فيزا / ماستر كارد)
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="payment_method" id="pmPaypal" value="paypal" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='paypal'?'checked':'' ?>>
+                <label class="form-check-label" for="pmPaypal">
+                  <i class="bi bi-paypal"></i> PayPal
+                </label>
               </div>
             </div>
 

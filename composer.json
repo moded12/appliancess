@@ -1,0 +1,21 @@
+{
+    "name": "appliancess/store",
+    "description": "Appliances E-commerce Store with Stripe and PayPal Payment Integration",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": ">=7.4",
+        "stripe/stripe-php": "^14.0"
+    },
+    "autoload": {
+        "psr-4": {}
+    },
+    "config": {
+        "optimize-autoloader": true
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "@php -r \"echo 'Stripe library installed successfully.\\n';\""
+        ]
+    }
+}
