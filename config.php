@@ -41,6 +41,7 @@ return [
   'paypal_secret'          => getenv('PAYPAL_SECRET') ?: '',
   'paypal_mode'            => getenv('PAYPAL_MODE') ?: 'sandbox', // 'sandbox' or 'live'
   'paypal_merchant_email'  => 'ajourisat@yahoo.com', // Reference only for PayPal Developer setup
+  'paypal_webhook_id'      => getenv('PAYPAL_WEBHOOK_ID') ?: '', // Webhook ID from PayPal Developer Dashboard
 
   // Default currency for payment gateways
   'default_currency'       => getenv('DEFAULT_CURRENCY') ?: 'USD',

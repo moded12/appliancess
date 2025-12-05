@@ -263,7 +263,7 @@ $title = 'إتمام الشراء';
           <div class="card-body">
             <div class="alert alert-info">
               <strong>رقم الطلب:</strong> #<?= (int)$orderId ?><br>
-              <strong>المبلغ:</strong> <?= price_fmt($total) ?>
+              <strong>المبلغ:</strong> $<?= number_format($total, 2) ?>
             </div>
             
             <?php $paymentGateway = $_SESSION['payment_order']['gateway'] ?? $_POST['payment_method']; ?>

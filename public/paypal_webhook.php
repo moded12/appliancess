@@ -37,13 +37,25 @@ if (!$event || !isset($event['event_type'])) {
     exit;
 }
 
+// Verify PayPal webhook signature (if webhook ID is configured)
+$webhookId = $config['paypal_webhook_id'] ?? '';
+if (!empty($webhookId)) {
+    $verified = verify_paypal_webhook($payload, $headers, $webhookId);
+    if (!$verified) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Webhook signature verification failed']);
+        error_log('PayPal webhook error: Signature verification failed');
+        exit;
+    }
+} else {
+    // Log warning but continue processing (useful for sandbox testing)
+    error_log('PayPal webhook: PAYPAL_WEBHOOK_ID not configured, skipping signature verification');
+}
+
 $eventType = $event['event_type'];
 $resource = $event['resource'] ?? [];
 
 error_log('PayPal webhook event type: ' . $eventType);
-
-// Note: For production, you should verify the webhook signature using PayPal's API
-// See: https://developer.paypal.com/api/rest/webhooks/rest/
 
 try {
     switch ($eventType) {

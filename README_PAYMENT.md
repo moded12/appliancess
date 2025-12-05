@@ -71,6 +71,7 @@ export STRIPE_WEBHOOK_SECRET="whsec_..."
 export PAYPAL_CLIENT_ID="your_sandbox_client_id"
 export PAYPAL_SECRET="your_sandbox_secret"
 export PAYPAL_MODE="sandbox"  # Use "live" for production
+export PAYPAL_WEBHOOK_ID="your_webhook_id"  # From PayPal Developer Dashboard
 
 # Currency
 export DEFAULT_CURRENCY="USD"
@@ -89,6 +90,7 @@ export STRIPE_WEBHOOK_SECRET="whsec_..."
 export PAYPAL_CLIENT_ID="معرف_العميل_للاختبار"
 export PAYPAL_SECRET="السر_للاختبار"
 export PAYPAL_MODE="sandbox"  # استخدم "live" للإنتاج
+export PAYPAL_WEBHOOK_ID="معرف_ويب_هوك"  # من لوحة PayPal Developer
 
 # العملة
 export DEFAULT_CURRENCY="USD"

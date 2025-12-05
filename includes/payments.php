@@ -585,3 +585,89 @@ function verify_stripe_webhook_manual(string $payload, string $sigHeader, string
     
     return json_decode($payload, true);
 }
+
+/**
+ * Verify PayPal webhook signature
+ * 
+ * Note: For full production verification, PayPal provides a webhook verification API.
+ * This function performs basic validation and can optionally verify via API.
+ * 
+ * @param string $payload Raw webhook payload
+ * @param array $headers Webhook headers
+ * @param string $webhookId Your PayPal webhook ID (from PayPal Developer Dashboard)
+ * @return bool True if verification passes or is skipped
+ */
+function verify_paypal_webhook(
+    string $payload,
+    array $headers,
+    string $webhookId = ''
+): bool {
+    // If no webhook ID configured, log warning but allow processing
+    // (useful for sandbox testing without full verification)
+    if (empty($webhookId)) {
+        error_log('PayPal webhook: Webhook ID not configured, skipping signature verification');
+        return true;
+    }
+    
+    $config = require __DIR__ . '/../config.php';
+    
+    $clientId = $config['paypal_client_id'] ?? '';
+    $secret = $config['paypal_secret'] ?? '';
+    $mode = $config['paypal_mode'] ?? 'sandbox';
+    
+    if (empty($clientId) || empty($secret)) {
+        error_log('PayPal webhook verification: Credentials not configured');
+        return false;
+    }
+    
+    $accessToken = paypal_get_access_token($clientId, $secret, $mode);
+    if (!$accessToken) {
+        error_log('PayPal webhook verification: Failed to get access token');
+        return false;
+    }
+    
+    $baseUrl = $mode === 'live' 
+        ? 'https://api-m.paypal.com' 
+        : 'https://api-m.sandbox.paypal.com';
+    
+    // Build verification payload
+    $verifyPayload = [
+        'auth_algo' => $headers['Paypal-Auth-Algo'] ?? '',
+        'cert_url' => $headers['Paypal-Cert-Url'] ?? '',
+        'transmission_id' => $headers['Paypal-Transmission-Id'] ?? '',
+        'transmission_sig' => $headers['Paypal-Transmission-Sig'] ?? '',
+        'transmission_time' => $headers['Paypal-Transmission-Time'] ?? '',
+        'webhook_id' => $webhookId,
+        'webhook_event' => json_decode($payload, true),
+    ];
+    
+    $ch = curl_init($baseUrl . '/v1/notifications/verify-webhook-signature');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($verifyPayload),
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $accessToken,
+        ],
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode !== 200) {
+        error_log('PayPal webhook verification failed: HTTP ' . $httpCode . ' - ' . $response);
+        return false;
+    }
+    
+    $result = json_decode($response, true);
+    $status = $result['verification_status'] ?? '';
+    
+    if ($status === 'SUCCESS') {
+        return true;
+    }
+    
+    error_log('PayPal webhook verification failed: ' . $status);
+    return false;
+}

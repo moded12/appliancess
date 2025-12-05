@@ -29,7 +29,7 @@ $orderId = (int) ($_GET['order_id'] ?? 0);
 $paypalToken = trim($_GET['token'] ?? ''); // PayPal adds this parameter
 
 if ($orderId <= 0) {
-    $error = 'رقم الطلب غير صالح.';
+    $error = 'عذراً، حدث خطأ في معالجة الطلب.';
 }
 
 // Fetch order
@@ -41,7 +41,7 @@ if (!$error) {
         $order = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$order) {
-            $error = 'الطلب غير موجود.';
+            $error = 'عذراً، حدث خطأ في معالجة الطلب.';
         } elseif ($order['payment_status'] === 'paid') {
             // Already paid, redirect to success
             header('Location: order_view.php?id=' . $orderId . '&payment=already_paid');
