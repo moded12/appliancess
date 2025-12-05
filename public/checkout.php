@@ -58,11 +58,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     $name    = trim($_POST['name'] ?? '');
     $phone   = trim($_POST['phone'] ?? '');
     $address = trim($_POST['address'] ?? '');
-    $method  = $_POST['payment_method'] ?? 'cod'; // cod | cliq | card
+    $method  = $_POST['payment_method'] ?? 'cod'; // cod | cliq | card | stripe | paypal
 
     if ($name==='' || $phone==='' || $address==='') {
       $err = 'يرجى تعبئة جميع الحقول.';
-    } elseif (!in_array($method, ['cod','cliq','card'], true)) {
+    } elseif (!in_array($method, ['cod','cliq','card','stripe','paypal'], true)) {
       $err = 'طريقة دفع غير صالحة.';
     } else {
 
@@ -75,9 +75,13 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         $gateway = 'cliq';
         $paymentStatus = 'awaiting_transfer';
         $orderStatus = 'waiting_payment';
-      } elseif ($method === 'card') {
-        $gateway = 'card_stub';
-        $paymentStatus = 'initiated';
+      } elseif ($method === 'card' || $method === 'stripe') {
+        $gateway = 'stripe';
+        $paymentStatus = 'pending';
+        $orderStatus = 'waiting_payment';
+      } elseif ($method === 'paypal') {
+        $gateway = 'paypal';
+        $paymentStatus = 'pending';
         $orderStatus = 'waiting_payment';
       } else { // cod
         $gateway = 'cod';
@@ -101,8 +105,9 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         }
       }
 
-      // بطاقة (مجرد نموذج – لا يخزن الرقم كاملاً)
-      if ($method === 'card') {
+      // Stripe/PayPal - No card data input needed (handled by gateway)
+      // Keep old card form logic for backward compatibility but skip validation for stripe/paypal
+      if ($method === 'card' && $gateway !== 'stripe') {
         $cardHolder = trim($_POST['card_holder'] ?? '');
         $cardNumber = preg_replace('/\D+/', '', $_POST['card_number'] ?? '');
         $exp        = trim($_POST['card_exp'] ?? '');
@@ -178,7 +183,26 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             $msg = 'تم إنشاء الطلب بنجاح. رقم الطلب: '.$orderId.' سيتم الدفع عند التوصيل.';
           } elseif ($method === 'cliq') {
             $msg = 'تم إنشاء الطلب رقم '.$orderId.' بانتظار التحويل عبر كليك. الرجاء تنفيذ التحويل ثم تزويدنا بمرجع التحويل عند المتابعة.';
-          } else { // card
+          } elseif ($method === 'stripe' || ($method === 'card' && $gateway === 'stripe')) {
+            // Redirect to Stripe payment via pay.php
+            // We need to do a POST redirect, so we'll output a form that auto-submits
+            $_SESSION['pending_payment'] = [
+              'order_id' => $orderId,
+              'gateway' => 'stripe',
+              'csrf' => csrf_token()
+            ];
+            header('Location: pay.php?auto=stripe&order_id='.$orderId);
+            exit;
+          } elseif ($method === 'paypal') {
+            // Redirect to PayPal payment via pay.php
+            $_SESSION['pending_payment'] = [
+              'order_id' => $orderId,
+              'gateway' => 'paypal',
+              'csrf' => csrf_token()
+            ];
+            header('Location: pay.php?auto=paypal&order_id='.$orderId);
+            exit;
+          } else { // legacy card
             // تحويل وهمي إلى صفحة بدء الدفع الفعلي
             header('Location: payment_init.php?order='.$orderId);
             exit;
@@ -258,15 +282,19 @@ $title = 'إتمام الشراء';
               <label class="form-label">طريقة الدفع</label>
               <div class="form-check">
                 <input class="form-check-input" type="radio" name="payment_method" id="pmCod" value="cod" <?= empty($_POST['payment_method'])||$_POST['payment_method']==='cod'?'checked':'' ?>>
-                <label class="form-check-label" for="pmCod">الدفع عند التوصيل (COD)</label>
+                <label class="form-check-label" for="pmCod"><i class="bi bi-cash-stack me-1"></i> الدفع عند التوصيل (COD)</label>
               </div>
               <div class="form-check">
                 <input class="form-check-input" type="radio" name="payment_method" id="pmCliq" value="cliq" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='cliq'?'checked':'' ?>>
-                <label class="form-check-label" for="pmCliq">الدفع كليك (تحويل فوري)</label>
+                <label class="form-check-label" for="pmCliq"><i class="bi bi-bank me-1"></i> الدفع كليك (تحويل فوري)</label>
               </div>
               <div class="form-check">
-                <input class="form-check-input" type="radio" name="payment_method" id="pmCard" value="card" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='card'?'checked':'' ?>>
-                <label class="form-check-label" for="pmCard">بطاقة فيزا / ماستر كارد</label>
+                <input class="form-check-input" type="radio" name="payment_method" id="pmStripe" value="stripe" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='stripe'?'checked':'' ?>>
+                <label class="form-check-label" for="pmStripe"><i class="bi bi-credit-card me-1"></i> بطاقة ائتمان / Visa / MasterCard (Stripe)</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="payment_method" id="pmPayPal" value="paypal" <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='paypal'?'checked':'' ?>>
+                <label class="form-check-label" for="pmPayPal"><i class="bi bi-paypal me-1"></i> PayPal</label>
               </div>
             </div>
 
@@ -284,8 +312,24 @@ $title = 'إتمام الشراء';
               <div class="small text-muted mb-3">بعد التحويل سنراجع ونعتمد الدفع.</div>
             </div>
 
-            <!-- صندوق البطاقة -->
-            <div class="pay-box <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='card'?'active':'' ?>" id="boxCard">
+            <!-- Stripe Info Box -->
+            <div class="pay-box <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='stripe'?'active':'' ?>" id="boxStripe">
+              <div class="alert alert-info mb-0 p-3">
+                <h6 class="fw-semibold mb-2"><i class="bi bi-credit-card"></i> الدفع ببطاقة Visa/MasterCard</h6>
+                <p class="small mb-0">سيتم تحويلك إلى صفحة الدفع الآمنة عبر Stripe لإتمام عملية الدفع بالبطاقة.</p>
+              </div>
+            </div>
+
+            <!-- PayPal Info Box -->
+            <div class="pay-box <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='paypal'?'active':'' ?>" id="boxPayPal">
+              <div class="alert alert-primary mb-0 p-3">
+                <h6 class="fw-semibold mb-2"><i class="bi bi-paypal"></i> الدفع عبر PayPal</h6>
+                <p class="small mb-0">سيتم تحويلك إلى PayPal لتسجيل الدخول وإتمام عملية الدفع.</p>
+              </div>
+            </div>
+
+            <!-- صندوق البطاقة (legacy - hidden by default) -->
+            <div class="pay-box <?= isset($_POST['payment_method'])&&$_POST['payment_method']==='card'?'active':'' ?>" id="boxCard" style="display:none;">
               <h6 class="fw-semibold">بيانات البطاقة (مثال تجريبي)</h6>
               <div class="mb-2">
                 <label class="form-label">اسم حامل البطاقة</label>
@@ -349,11 +393,15 @@ $title = 'إتمام الشراء';
   const radios = document.querySelectorAll('input[name="payment_method"]');
   const boxCliq = document.getElementById('boxCliq');
   const boxCard = document.getElementById('boxCard');
+  const boxStripe = document.getElementById('boxStripe');
+  const boxPayPal = document.getElementById('boxPayPal');
 
   function updateBoxes() {
     const val = document.querySelector('input[name="payment_method"]:checked')?.value;
-    boxCliq.classList.toggle('active', val === 'cliq');
-    boxCard.classList.toggle('active', val === 'card');
+    if (boxCliq) boxCliq.classList.toggle('active', val === 'cliq');
+    if (boxCard) boxCard.classList.toggle('active', val === 'card');
+    if (boxStripe) boxStripe.classList.toggle('active', val === 'stripe');
+    if (boxPayPal) boxPayPal.classList.toggle('active', val === 'paypal');
   }
   radios.forEach(r => r.addEventListener('change', updateBoxes));
   updateBoxes();

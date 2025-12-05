@@ -133,6 +133,17 @@ if (!empty($order['customer_id'])) {
     $recentOrders = $rs->fetchAll(PDO::FETCH_ASSOC);
   } catch (Throwable $e) { /* تجاهل */ }
 }
+
+// جلب سجلات المدفوعات من جدول payments
+$orderPayments = [];
+try {
+  $ps = $pdo->prepare("SELECT * FROM payments WHERE order_id = :oid ORDER BY created_at DESC");
+  $ps->execute([':oid' => $orderId]);
+  $orderPayments = $ps->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) { 
+  // جدول payments قد لا يكون موجوداً بعد
+  $orderPayments = [];
+}
 ?>
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -261,6 +272,47 @@ if (!empty($order['customer_id'])) {
       </div>
     <?php endif; ?>
   </div>
+
+  <!-- سجلات المدفوعات -->
+  <?php if ($orderPayments): ?>
+  <div class="card-soft mb-3">
+    <h2 class="h6 fw-bold mb-3"><i class="bi bi-credit-card"></i> سجلات المدفوعات</h2>
+    <div class="table-responsive">
+      <table class="table table-sm table-striped align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>البوابة</th>
+            <th>رقم المعاملة</th>
+            <th>المبلغ</th>
+            <th>العملة</th>
+            <th>الحالة</th>
+            <th>التاريخ</th>
+          </tr>
+        </thead>
+        <tbody>
+        <?php foreach ($orderPayments as $pay): 
+          $pStatus = $pay['status'] ?? 'pending';
+          $pClass = 'pay-pending';
+          if ($pStatus === 'completed') $pClass = 'pay-paid';
+          elseif ($pStatus === 'failed') $pClass = 'pay-failed';
+          elseif (in_array($pStatus, ['initiated','processing'])) $pClass = 'pay-await';
+        ?>
+          <tr>
+            <td><?= (int)$pay['id'] ?></td>
+            <td><span class="badge bg-secondary"><?= e($pay['gateway'] ?? '-') ?></span></td>
+            <td class="small"><?= e($pay['transaction_id'] ?? '-') ?></td>
+            <td><?= number_format((float)($pay['amount'] ?? 0), 2) ?></td>
+            <td><?= e($pay['currency'] ?? 'USD') ?></td>
+            <td><span class="payment-badge <?= $pClass ?>"><?= e($pStatus) ?></span></td>
+            <td class="small"><?= e($pay['created_at'] ?? '') ?></td>
+          </tr>
+        <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <?php endif; ?>
 
   <!-- تفاصيل الدفع الإضافية -->
   <div class="row g-3">
