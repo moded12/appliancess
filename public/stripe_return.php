@@ -1,12 +1,11 @@
 <?php
+declare(strict_types=1);
 /**
  * المسار: public/stripe_return.php
  * 
  * صفحة العودة بعد إتمام الدفع عبر Stripe Checkout
  * يتحقق من حالة الجلسة ويعرض رسالة النجاح أو الفشل
  */
-
-declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/functions.php';

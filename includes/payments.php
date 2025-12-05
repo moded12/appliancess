@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * المسار: includes/payments.php
  * 
@@ -9,8 +10,6 @@
  * - PayPal: createPayPalOrder(), capturePayPalOrder(), verifyPayPalWebhook()
  * - Database: savePaymentRecord(), updatePaymentStatus(), getPaymentByOrderId()
  */
-
-declare(strict_types=1);
 
 // تحميل Composer autoloader إن وجد
 $composerAutoload = __DIR__ . '/../vendor/autoload.php';

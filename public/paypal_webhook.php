@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * المسار: public/paypal_webhook.php
  * 
@@ -14,8 +15,6 @@
  * - PAYMENT.CAPTURE.DENIED
  * - PAYMENT.CAPTURE.REFUNDED
  */
-
-declare(strict_types=1);
 
 // تعطيل عرض الأخطاء في الإنتاج
 ini_set('display_errors', '0');

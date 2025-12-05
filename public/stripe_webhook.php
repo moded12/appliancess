@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * المسار: public/stripe_webhook.php
  * 
@@ -13,8 +14,6 @@
  * - payment_intent.succeeded
  * - payment_intent.payment_failed
  */
-
-declare(strict_types=1);
 
 // تعطيل عرض الأخطاء في الإنتاج
 ini_set('display_errors', '0');

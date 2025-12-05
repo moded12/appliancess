@@ -1,12 +1,11 @@
 <?php
+declare(strict_types=1);
 /**
  * المسار: public/paypal_return.php
  * 
  * صفحة العودة بعد موافقة المستخدم على الدفع عبر PayPal
  * يقوم بتنفيذ/استلام (capture) الطلب وتحديث قاعدة البيانات
  */
-
-declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/functions.php';
