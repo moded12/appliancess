@@ -1,0 +1,16 @@
+[2025-12-05 10:43:43] Payment init exception (stripe): Stripe SDK not installed. Run: composer require stripe/stripe-php -- trace: #0 /var/www/vhosts/shneler.com/httpdocs/xx/public/pay.php(60): create_stripe_session()
+#1 {main}
+[2025-12-05 10:44:21] Payment init exception (stripe): Stripe SDK not installed. Run: composer require stripe/stripe-php -- trace: #0 /var/www/vhosts/shneler.com/httpdocs/xx/public/pay.php(60): create_stripe_session()
+#1 {main}
+[2025-12-05 10:45:47] Payment init exception (stripe): Stripe SDK not installed. Run: composer require stripe/stripe-php -- trace: #0 /var/www/vhosts/shneler.com/httpdocs/xx/public/pay.php(57): create_stripe_session()
+#1 {main}
+[2025-12-05 10:46:20] Payment init exception (stripe): Stripe SDK not installed. Run: composer require stripe/stripe-php -- trace: #0 /var/www/vhosts/shneler.com/httpdocs/xx/public/pay.php(57): create_stripe_session()
+#1 {main}
+[2025-12-05 10:48:44] Payment init exception (stripe): Stripe SDK not installed. Run: composer require stripe/stripe-php -- trace: #0 /var/www/vhosts/shneler.com/httpdocs/xx/public/pay.php(57): create_stripe_session()
+#1 {main}
+[2025-12-05 10:49:15] Payment init exception (stripe): Stripe SDK not installed. Run: composer require stripe/stripe-php -- trace: #0 /var/www/vhosts/shneler.com/httpdocs/xx/public/pay.php(57): create_stripe_session()
+#1 {main}
+[2025-12-05 10:56:17] Payment init exception (stripe): Stripe SDK not installed. Run: composer require stripe/stripe-php -- trace: #0 /var/www/vhosts/shneler.com/httpdocs/xx/public/pay.php(57): create_stripe_session()
+#1 {main}
+[2025-12-05 10:56:21] Payment init exception (stripe): Stripe SDK not installed. Run: composer require stripe/stripe-php -- trace: #0 /var/www/vhosts/shneler.com/httpdocs/xx/public/pay.php(57): create_stripe_session()
+#1 {main}

@@ -1,0 +1,6 @@
+[2025-12-05 09:33:42] Missing required file(s): includes/payments.php
+[2025-12-05 09:33:42] Missing required file(s): includes/payments.php in /var/www/vhosts/shneler.com/httpdocs/xx/public/payment_init_debug.php:33
+#0 {main}
+[2025-12-05 10:27:08] SQLSTATE[42S22]: Column not found: 1054 Unknown column 'currency' in 'field list' in /var/www/vhosts/shneler.com/httpdocs/xx/public/payment_init_debug.php:48
+#0 /var/www/vhosts/shneler.com/httpdocs/xx/public/payment_init_debug.php(48): PDOStatement->execute()
+#1 {main}

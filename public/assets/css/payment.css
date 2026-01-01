@@ -1,0 +1,55 @@
+/* Payment Page Styles (Improved)
+   Path: public/assets/css/payment.css
+*/
+
+body{
+  direction: rtl;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Cairo','Tajawal', system-ui, -apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+}
+
+.pay-card{
+  max-width: 820px;
+  margin: 60px auto;
+  padding: 22px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.pay-card h2{
+  margin-top: 0;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.pay-card p{ color: var(--text-light); }
+
+.pay-card .btn{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  padding: 10px 14px;
+  margin: 8px 8px 0 0;
+  background: var(--brand);
+  color: #fff;
+  text-decoration: none;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 800;
+  transition: var(--transition);
+  box-shadow: 0 10px 24px rgba(var(--brand-rgb), .18);
+}
+.pay-card .btn:hover{ filter: brightness(.96); }
+.pay-card .btn:active{ transform: translateY(1px); }
+
+.pay-card .btn-secondary{
+  background: rgba(var(--brand-rgb), .10);
+  color: var(--brand);
+  box-shadow: none;
+  border: 1px solid rgba(var(--brand-rgb), .20);
+}
